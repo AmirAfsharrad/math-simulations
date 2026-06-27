@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linear or not? Probe the mystery map | EE263</title>
+<style>
+  :root{--blue:#1f5fa6;--red:#c0392b;--green:#2e8b57;--purple:#6a3d9a;--ink:#222;--muted:#666;--line:#e3e3e3;--bg:#fafafa;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5;}
+  header.page{padding:22px 24px 14px;border-bottom:1px solid var(--line);background:#fff;}
+  header.page .crumb{font-size:.9rem;color:var(--muted);}
+  header.page .crumb a{color:var(--blue);text-decoration:none;}
+  header.page .crumb a:hover{text-decoration:underline;}
+  header.page h1{margin:6px 0 2px;font-size:1.5rem;}
+  header.page p{margin:0;color:var(--muted);max-width:82ch;}
+
+  .wrap{display:flex;gap:24px;align-items:flex-start;padding:22px 24px 40px;flex-wrap:wrap;}
+  .panel{flex:0 0 300px;max-width:100%;}
+  .views{flex:1 1 560px;display:flex;gap:18px;flex-wrap:wrap;min-width:300px;}
+  .view{flex:1 1 320px;min-width:280px;max-width:460px;}
+  .view h2{font-size:.95rem;margin:0 0 6px;}
+  .view h2 .sub{font-weight:normal;color:var(--muted);font-size:.85rem;}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:4px;touch-action:none;}
+  #cvIn{cursor:grab;} #cvIn.drag{cursor:grabbing;} #cvOut{cursor:default;}
+
+  h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px;}
+
+  .maps{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+  .maps button{font:inherit;font-size:1rem;min-width:42px;padding:7px 0;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;color:var(--ink);font-style:italic;}
+  .maps button:hover{border-color:var(--blue);color:var(--blue);}
+  .maps button.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+  .obj{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .label-x{font-size:1.15rem;font-style:italic;}
+  .bracket{display:grid;grid-template-columns:1fr;gap:6px 10px;padding:8px 12px;border-left:3px solid var(--ink);border-right:3px solid var(--ink);border-radius:2px;}
+  .bracket input{font:inherit;font-variant-numeric:tabular-nums;font-size:1.02rem;text-align:center;width:5ch;padding:3px 2px;border:1px solid var(--line);border-radius:4px;background:#fff;-moz-appearance:textfield;}
+  .bracket input::-webkit-outer-spin-button,.bracket input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .bracket input:focus{outline:2px solid var(--blue);border-color:var(--blue);}
+  .typehint{font-size:.8rem;color:var(--muted);margin:6px 0 14px;}
+
+  .readout{background:#fff;border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-size:.92rem;margin:4px 0 14px;}
+  .readout .row{display:flex;justify-content:space-between;gap:10px;}
+  .readout .row+.row{margin-top:4px;}
+  .readout b{font-variant-numeric:tabular-nums;}
+  .readout .off{color:var(--red);}
+
+  .btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+  .btns button{font:inherit;font-size:.83rem;padding:5px 9px;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer;color:var(--ink);}
+  .btns button:hover{border-color:var(--blue);color:var(--blue);}
+
+  .legend{font-size:.84rem;color:var(--muted);margin-top:10px;}
+  .legend .sw{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+</style>
+</head>
+<body>
+<header class="page">
+  <div class="crumb"><a href="../">&larr; Math simulations</a> &nbsp;&middot;&nbsp; EE263, Stanford</div>
+  <h1>Linear or not?</h1>
+  <p>Each button below is a hidden map <i>f</i> that turns a 2-D input <i>x</i> into a 2-D output <i>y = f</i>(<i>x</i>).
+     You cannot see its formula, only its inputs and outputs. Feed it values: type <i>x</i>, or drag the blue arrow in the
+     left plane, and watch <i>y</i> move in the right plane. <b>Your job: decide whether the map is linear.</b></p>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <h3>Choose a map</h3>
+    <div class="maps" id="maps"></div>
+
+    <h3>Input x</h3>
+    <div class="obj">
+      <span class="label-x">x =</span>
+      <div class="bracket">
+        <input type="number" step="0.1" id="x0" value="1" aria-label="x1">
+        <input type="number" step="0.1" id="x1" value="1" aria-label="x2">
+      </div>
+    </div>
+    <p class="typehint">Type the two components, or drag x in the left plane.</p>
+
+    <div class="readout">
+      <div class="row"><span>x</span><b id="rx">(1.00, 1.00)</b></div>
+      <div class="row"><span>y = f(x)</span><b id="ry">(0.00, 0.00)</b></div>
+      <div class="row"><span>&#8741;x&#8741;, &#8741;y&#8741;</span><b id="rn">0.00, 0.00</b></div>
+    </div>
+
+    <h3>Quick probes</h3>
+    <div class="btns" id="btns"></div>
+
+    <div class="legend">
+      <div><span class="sw" style="background:#1f5fa6"></span> input x &nbsp;
+           <span class="sw" style="background:#c0392b"></span> output y</div>
+      <div style="margin-top:4px"><span class="sw" style="background:#9fb8d4"></span> pinned probes (faded)</div>
+    </div>
+  </div>
+
+  <div class="views">
+    <div class="view">
+      <h2>Input plane &nbsp;<span class="sub">drag x</span></h2>
+      <canvas id="cvIn" width="420" height="420"></canvas>
+    </div>
+    <div class="view">
+      <h2>Output plane &nbsp;<span class="sub">y = f(x)</span></h2>
+      <canvas id="cvOut" width="420" height="420"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// The maps live on a server; the browser never receives the formulas, only
+// y = f(x) for a requested map id. The definitions (and which maps are linear)
+// are in a private backend: /api/ee263/linear-or-not on the EE263 oracle.
+(function () {
+  const $ = id => document.getElementById(id);
+  const VIEW = 5;            // both planes show [-VIEW, VIEW]^2
+  const EPS = 1e-9;
+  const API = "https://personal-backend-production-0d2e.up.railway.app/api/ee263/linear-or-not";
+
+  const IDS = ["f1", "f2", "f3", "f4", "f5", "f6"];   // map ids the server knows
+  const SUB = ["₁", "₂", "₃", "₄", "₅", "₆"];
+  const pretty = id => "f" + SUB[+id.slice(1) - 1];
+
+  // model
+  let current = IDS[0];      // selected map id, e.g. "f1"
+  let x = [1, 1];            // input; updated locally and drawn instantly
+  let targetY = null;        // latest y from the server for the current map (truth)
+  let dispY = null;          // animated y actually drawn (eases toward targetY)
+  let yState = "loading";    // "ok" | "loading" | "error"
+  let pins = [];             // [{x:[..], y:[..]}]
+  let dragging = false;
+  const snap = v => Math.round(v*20)/20;
+  const clampView = v => Math.max(-VIEW+0.3, Math.min(VIEW-0.3, snap(v)));
+
+  // ---- transport: a WebSocket streams y = f(x); HTTP is the fallback ------
+  // The browser only ever sends a map id + x and reads back y. A persistent
+  // socket avoids per-request HTTP overhead, so a drag tracks with about one
+  // network hop of lag instead of a full request per move. Probed points are
+  // cached; the output arrow is eased (below) to smooth the discrete updates.
+  const cache = new Map();
+  const ckey = (n, v) => n + "|" + (+v[0]).toFixed(4) + "|" + (+v[1]).toFixed(4);
+
+  function applyResult(name, v, y) {
+    cache.set(ckey(name, v), y);
+    if (name === current) { targetY = y; yState = "ok"; ensureLoop(); }
+  }
+
+  const WS_URL = API.replace(/^http/, "ws") + "/ws";
+  let ws = null, wsReady = false, wsAttempts = 0;
+  function connectWS() {
+    let sock;
+    try { sock = new WebSocket(WS_URL); } catch (e) { scheduleReconnect(); return; }
+    ws = sock;
+    sock.onopen = () => { wsReady = true; wsAttempts = 0; lastSentKey = null; requestUpdate(); };
+    sock.onmessage = ev => {
+      let d; try { d = JSON.parse(ev.data); } catch (e) { return; }
+      if (d && d.y && d.map) applyResult(d.map, d.x, d.y);
+    };
+    sock.onerror = () => {};
+    sock.onclose = () => { wsReady = false; ws = null; scheduleReconnect(); };
+  }
+  function scheduleReconnect() {
+    if (wsAttempts >= 5) return;          // give up; the HTTP fallback covers it
+    wsAttempts++;
+    setTimeout(connectWS, Math.min(500 * wsAttempts, 3000));
+  }
+
+  // HTTP fallback (single-flight coalescing), used whenever the socket is down
+  let httpBusy = false, httpPending = null;
+  async function httpPump() {
+    httpBusy = true;
+    while (httpPending) {
+      const [name, v] = httpPending; httpPending = null;
+      try {
+        const r = await fetch(`${API}/eval?map=${name}&x1=${v[0]}&x2=${v[1]}`);
+        if (!r.ok) throw new Error("http " + r.status);
+        applyResult(name, v, (await r.json()).y);
+      } catch (e) {
+        if (name === current) { yState = "error"; ensureLoop(); }
+      }
+    }
+    httpBusy = false;
+  }
+
+  // Ask for y at the current (map, x): cache, else socket, else HTTP.
+  let lastSentKey = null;
+  function requestUpdate() {
+    const key = ckey(current, x);
+    if (key === lastSentKey) return;        // already requested this exact point
+    const cached = cache.get(key);
+    if (cached) { lastSentKey = key; targetY = cached; yState = "ok"; return; }
+    if (wsReady && ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ map: current, x1: x[0], x2: x[1] }));
+      lastSentKey = key;
+    } else {
+      httpPending = [current, x.slice()]; lastSentKey = key;
+      if (!httpBusy) httpPump();
+    }
+  }
+
+  // ---- animation loop: ease dispY toward targetY, drive the sends ---------
+  let rafId = null;
+  function ensureLoop() { if (rafId === null) rafId = requestAnimationFrame(tick); }
+  function tick() {
+    requestUpdate();                          // send the latest x (one per frame)
+    let moving = false;
+    if (targetY !== null) {
+      if (dispY === null) dispY = targetY.slice();
+      else for (let i = 0; i < 2; i++) {
+        const d = targetY[i] - dispY[i];
+        if (Math.abs(d) > 2e-3) { dispY[i] += d * 0.45; moving = true; }
+        else dispY[i] = targetY[i];
+      }
+    }
+    draw();
+    rafId = (dragging || moving) ? requestAnimationFrame(tick) : null;
+  }
+  // call after any change to x or the selected map
+  function onChange() { lastSentKey = null; requestUpdate(); ensureLoop(); }
+
+  // ---- canvas helper (DPR-aware, world<->screen) --------------------------
+  function setup(id) {
+    const cv = $(id), ctx = cv.getContext("2d");
+    const api = { cv, ctx, W: 0, H: 0 };
+    api.resize = () => {
+      const cssW = cv.clientWidth || 420, dpr = window.devicePixelRatio || 1;
+      api.W = Math.round(cssW * dpr); api.H = api.W;
+      cv.width = api.W; cv.height = api.H; cv.style.height = cssW + "px";
+    };
+    api.S = (wx, wy) => { const s = api.W / (2*VIEW); return [api.W/2 + wx*s, api.H/2 - wy*s]; };
+    api.Sinv = (px, py) => { const s = api.W / (2*VIEW); return [(px - api.W/2)/s, (api.H/2 - py)/s]; };
+    return api;
+  }
+  const inp = setup("cvIn"), out = setup("cvOut");
+
+  function gridAxes(g) {
+    const dpr = window.devicePixelRatio || 1;
+    g.ctx.clearRect(0, 0, g.W, g.H);
+    g.ctx.strokeStyle = "#eef0f2"; g.ctx.lineWidth = 1*dpr;
+    for (let v = -VIEW+1; v <= VIEW-1; v++) {
+      if (v === 0) continue;
+      let p = g.S(v, -VIEW), q = g.S(v, VIEW);
+      g.ctx.beginPath(); g.ctx.moveTo(p[0], p[1]); g.ctx.lineTo(q[0], q[1]); g.ctx.stroke();
+      p = g.S(-VIEW, v); q = g.S(VIEW, v);
+      g.ctx.beginPath(); g.ctx.moveTo(p[0], p[1]); g.ctx.lineTo(q[0], q[1]); g.ctx.stroke();
+    }
+    g.ctx.strokeStyle = "#9aa3ad"; g.ctx.lineWidth = 1.1*dpr;
+    let p = g.S(-VIEW, 0), q = g.S(VIEW, 0);
+    g.ctx.beginPath(); g.ctx.moveTo(p[0], p[1]); g.ctx.lineTo(q[0], q[1]); g.ctx.stroke();
+    p = g.S(0, -VIEW); q = g.S(0, VIEW);
+    g.ctx.beginPath(); g.ctx.moveTo(p[0], p[1]); g.ctx.lineTo(q[0], q[1]); g.ctx.stroke();
+  }
+  function arrow(g, a, b, color, lw, alpha) {
+    const dpr = window.devicePixelRatio || 1;
+    const A0 = g.S(a[0], a[1]), B0 = g.S(b[0], b[1]);
+    g.ctx.save();
+    g.ctx.globalAlpha = alpha == null ? 1 : alpha;
+    g.ctx.strokeStyle = color; g.ctx.fillStyle = color; g.ctx.lineWidth = lw*dpr;
+    g.ctx.beginPath(); g.ctx.moveTo(A0[0], A0[1]); g.ctx.lineTo(B0[0], B0[1]); g.ctx.stroke();
+    const ang = Math.atan2(B0[1]-A0[1], B0[0]-A0[0]), len = Math.hypot(B0[0]-A0[0], B0[1]-A0[1]);
+    if (len > 6*dpr) {
+      const h = 11*dpr;
+      g.ctx.beginPath(); g.ctx.moveTo(B0[0], B0[1]);
+      g.ctx.lineTo(B0[0]-h*Math.cos(ang-0.4), B0[1]-h*Math.sin(ang-0.4));
+      g.ctx.lineTo(B0[0]-h*Math.cos(ang+0.4), B0[1]-h*Math.sin(ang+0.4));
+      g.ctx.closePath(); g.ctx.fill();
+    }
+    g.ctx.restore();
+  }
+  function dot(g, p, color, r, alpha) {
+    const dpr = window.devicePixelRatio || 1, s = g.S(p[0], p[1]);
+    g.ctx.save(); g.ctx.globalAlpha = alpha == null ? 1 : alpha;
+    g.ctx.fillStyle = color; g.ctx.beginPath(); g.ctx.arc(s[0], s[1], (r||5)*dpr, 0, 2*Math.PI); g.ctx.fill();
+    g.ctx.restore();
+  }
+  function label(g, p, text, color, off) {
+    const dpr = window.devicePixelRatio || 1, s = g.S(p[0], p[1]);
+    g.ctx.fillStyle = color; g.ctx.font = `${14*dpr}px Georgia, serif`;
+    g.ctx.fillText(text, s[0] + (off ? off[0] : 8)*dpr, s[1] + (off ? off[1] : -8)*dpr);
+  }
+  // scale a point down to the view box if it falls outside; flag if it did
+  function fit(p) {
+    const m = Math.max(Math.abs(p[0]), Math.abs(p[1]));
+    if (m <= VIEW-0.15) return { p, off: false };
+    const s = (VIEW-0.15) / m; return { p: [p[0]*s, p[1]*s], off: true };
+  }
+  function offNote(g, p) {
+    const dpr = window.devicePixelRatio || 1, s = g.S(p[0], p[1]);
+    g.ctx.save();
+    g.ctx.font = `${12*dpr}px -apple-system, sans-serif`;
+    const txt = "off-scale", w = g.ctx.measureText(txt).width;
+    let tx = s[0] + 10*dpr, ty = s[1] - 10*dpr;        // keep the label fully on-canvas
+    tx = Math.max(4*dpr, Math.min(g.W - w - 4*dpr, tx));
+    ty = Math.max(14*dpr, Math.min(g.H - 4*dpr, ty));
+    g.ctx.lineWidth = 3*dpr; g.ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    g.ctx.strokeText(txt, tx, ty);
+    g.ctx.fillStyle = "#c0392b"; g.ctx.fillText(txt, tx, ty);
+    g.ctx.restore();
+  }
+
+  function drawInput() {
+    gridAxes(inp);
+    pins.forEach(pin => { arrow(inp, [0,0], pin.x, "#9fb8d4", 2, 0.6); dot(inp, pin.x, "#9fb8d4", 4, 0.7); });
+    arrow(inp, [0,0], x, "#1f5fa6", 2.6);
+    dot(inp, x, "#1f5fa6", 5.5);
+    label(inp, x, "x", "#1f5fa6", [9, -6]);
+  }
+  function drawOutput() {
+    gridAxes(out);
+    pins.forEach(pin => {
+      const fy = fit(pin.y);
+      arrow(out, [0,0], fy.p, "#d9b3ad", 2, 0.6); dot(out, fy.p, "#d9b3ad", 4, 0.7);
+    });
+    if (dispY === null) return;             // nothing to draw until the first result
+    const fy = fit(dispY);
+    arrow(out, [0,0], fy.p, "#c0392b", 2.6);
+    dot(out, fy.p, "#c0392b", 5.5);
+    label(out, fy.p, "y", "#c0392b", [9, -6]);
+    if (fy.off) offNote(out, fy.p);
+  }
+  function readouts() {
+    $("rx").textContent = `(${x[0].toFixed(2)}, ${x[1].toFixed(2)})`;
+    const nx = Math.hypot(x[0], x[1]).toFixed(2);
+    if (yState === "error") {
+      $("ry").textContent = "server unavailable"; $("rn").textContent = `${nx}, —`;
+    } else if (targetY === null) {
+      $("ry").textContent = "…"; $("rn").textContent = `${nx}, …`;
+    } else {
+      const y = targetY;
+      $("ry").textContent = `(${y[0].toFixed(2)}, ${y[1].toFixed(2)})`;
+      $("rn").textContent = `${nx}, ${Math.hypot(y[0],y[1]).toFixed(2)}`;
+    }
+  }
+  function syncCells() { $("x0").value = +x[0].toFixed(3); $("x1").value = +x[1].toFixed(3); }
+  function draw() { drawInput(); drawOutput(); readouts(); }
+
+  // ---- map selector -------------------------------------------------------
+  const mapsBox = $("maps");
+  IDS.forEach(id => {
+    const b = document.createElement("button"); b.textContent = pretty(id); b.dataset.id = id;
+    b.addEventListener("click", () => {
+      current = id; pins = []; targetY = null; dispY = null; yState = "loading";
+      [...mapsBox.children].forEach(c => c.classList.toggle("active", c.dataset.id === id));
+      onChange();
+    });
+    mapsBox.appendChild(b);
+  });
+  mapsBox.firstChild.classList.add("active");
+
+  // ---- typed input --------------------------------------------------------
+  ["x0","x1"].forEach((id,i) => $(id).addEventListener("input", e => {
+    const v = parseFloat(e.target.value); if (isNaN(v)) return; x[i] = v; onChange();
+  }));
+
+  // ---- quick probes -------------------------------------------------------
+  const PROBES = [
+    ["×2", () => x = [snap(2*x[0]), snap(2*x[1])]],
+    ["÷2", () => x = [snap(0.5*x[0]), snap(0.5*x[1])]],
+    ["−x", () => x = [-x[0], -x[1]]],
+    ["x = 0", () => x = [0, 0]],
+    ["Pin", () => { if (pins.length < 8 && targetY) pins.push({ x: x.slice(), y: targetY.slice() }); }],
+    ["Clear pins", () => pins = []],
+  ];
+  const btnBox = $("btns");
+  PROBES.forEach(([t, fn]) => {
+    const b = document.createElement("button"); b.textContent = t;
+    b.addEventListener("click", () => { fn(); syncCells(); onChange(); });
+    btnBox.appendChild(b);
+  });
+
+  // ---- drag x on the input canvas -----------------------------------------
+  function toWorld(g, ev) {
+    const r = g.cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    return g.Sinv((ev.clientX-r.left)*dpr, (ev.clientY-r.top)*dpr);
+  }
+  function setFromDrag(ev) {
+    const w = toWorld(inp, ev);
+    x = [clampView(w[0]), clampView(w[1])];
+    syncCells(); onChange();
+  }
+  inp.cv.addEventListener("pointerdown", ev => { dragging = true; inp.cv.classList.add("drag"); inp.cv.setPointerCapture(ev.pointerId); setFromDrag(ev); });
+  inp.cv.addEventListener("pointermove", ev => { if (dragging) setFromDrag(ev); });
+  inp.cv.addEventListener("pointerup", () => { dragging = false; inp.cv.classList.remove("drag"); });
+  inp.cv.addEventListener("pointercancel", () => { dragging = false; inp.cv.classList.remove("drag"); });
+
+  function resizeAll(){ inp.resize(); out.resize(); draw(); }
+  window.addEventListener("resize", resizeAll);
+  connectWS(); syncCells(); resizeAll(); onChange();
+})();
+</script>
+</body>
+</html>

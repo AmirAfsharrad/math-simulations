@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two views of y = Ax: rows and columns | EE263</title>
+<style>
+  :root{--blue:#1f5fa6;--red:#c0392b;--green:#2e8b57;--purple:#6a3d9a;--ink:#222;--muted:#666;--line:#e3e3e3;--bg:#fafafa;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5;}
+  header.page{padding:22px 24px 14px;border-bottom:1px solid var(--line);background:#fff;}
+  header.page .crumb{font-size:.9rem;color:var(--muted);}
+  header.page .crumb a{color:var(--blue);text-decoration:none;}
+  header.page .crumb a:hover{text-decoration:underline;}
+  header.page h1{margin:6px 0 2px;font-size:1.5rem;}
+  header.page p{margin:0;color:var(--muted);max-width:80ch;}
+
+  .wrap{display:flex;gap:24px;align-items:flex-start;padding:22px 24px 40px;flex-wrap:wrap;}
+  .panel{flex:0 0 300px;max-width:100%;}
+  .views{flex:1 1 560px;display:flex;gap:18px;flex-wrap:wrap;min-width:300px;}
+  .view{flex:1 1 320px;min-width:280px;max-width:460px;}
+  .view h2{font-size:.95rem;margin:0 0 6px;}
+  .view h2 .sub{font-weight:normal;color:var(--muted);font-size:.85rem;}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:4px;touch-action:none;cursor:crosshair;}
+
+  h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px;}
+  .obj{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .label-A{font-size:1.15rem;font-style:italic;}
+  .bracket{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 10px;padding:8px 12px;border-left:3px solid var(--ink);border-right:3px solid var(--ink);border-radius:2px;}
+  .bracket input{font:inherit;font-variant-numeric:tabular-nums;font-size:1.02rem;text-align:center;width:4.2ch;padding:3px 2px;border:1px solid var(--line);border-radius:4px;background:#fff;-moz-appearance:textfield;}
+  .bracket input::-webkit-outer-spin-button,.bracket input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .bracket input:focus{outline:2px solid var(--blue);border-color:var(--blue);}
+  .typehint{font-size:.8rem;color:var(--muted);margin:0 0 14px;}
+
+  .readout{background:#fff;border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-size:.9rem;margin:4px 0 14px;}
+  .readout .row{display:flex;justify-content:space-between;}
+  .readout .row+.row{margin-top:4px;}
+  .readout b{font-variant-numeric:tabular-nums;}
+  .readout .hint{color:var(--muted);font-size:.84rem;margin-top:7px;}
+
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+  .presets button{font:inherit;font-size:.83rem;padding:5px 9px;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer;color:var(--ink);}
+  .presets button:hover{border-color:var(--blue);color:var(--blue);}
+  .legend{font-size:.84rem;color:var(--muted);margin-top:8px;}
+  .legend .sw{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+</style>
+</head>
+<body>
+<header class="page">
+  <div class="crumb"><a href="../">&larr; Math simulations</a> &nbsp;&middot;&nbsp; EE263, Stanford</div>
+  <h1>Two views of <i>y = Ax</i>: rows and columns</h1>
+  <p>The same equation has two readings. <b>By rows</b> (input space, left): each
+     <i>y<sub>i</sub> = &atilde;<sub>i</sub><sup>&#8868;</sup>x</i> is a line, and <i>x</i> is where they meet (the rows are &ldquo;sensors&rdquo;).
+     <b>By columns</b> (output space, right): <i>y = x</i><sub>1</sub><i>a</i><sub>1</sub> + <i>x</i><sub>2</sub><i>a</i><sub>2</sub>,
+     the output is a mixture of the columns of <i>A</i> (the &ldquo;actuators&rdquo;).
+     Drag <i>x</i> on the left or <i>y</i> on the right; watch both pictures move.</p>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <h3>Matrix A</h3>
+    <div class="obj">
+      <span class="label-A">A =</span>
+      <div class="bracket">
+        <input type="number" step="0.1" id="m00" value="2" aria-label="a11">
+        <input type="number" step="0.1" id="m01" value="1" aria-label="a12">
+        <input type="number" step="0.1" id="m10" value="-1" aria-label="a21">
+        <input type="number" step="0.1" id="m11" value="1" aria-label="a22">
+      </div>
+    </div>
+    <p class="typehint">Type entries, or pick a preset.</p>
+
+    <div class="readout">
+      <div class="row"><span>x (drag left)</span><b id="rx">(1.00, 2.00)</b></div>
+      <div class="row"><span>y = Ax (drag right)</span><b id="ry">(4.00, 1.00)</b></div>
+      <div class="row"><span>det A</span><b id="rdet">+3.00</b></div>
+      <div class="hint" id="rhint"></div>
+    </div>
+
+    <h3>Presets</h3>
+    <div class="presets" id="presets"></div>
+
+    <div class="legend">
+      <div><span class="sw" style="background:#c0392b"></span> column a<sub>1</sub>
+           &nbsp;<span class="sw" style="background:#2e8b57"></span> column a<sub>2</sub></div>
+      <div style="margin-top:4px"><span class="sw" style="background:#1f5fa6"></span> row line 1
+           &nbsp;<span class="sw" style="background:#6a3d9a"></span> row line 2</div>
+      <div style="margin-top:4px"><span class="sw" style="background:#111"></span> the points x and y</div>
+    </div>
+  </div>
+
+  <div class="views">
+    <div class="view">
+      <h2>Input space &nbsp;<span class="sub">rows as lines; x is the intersection</span></h2>
+      <canvas id="cvIn" width="420" height="420"></canvas>
+    </div>
+    <div class="view">
+      <h2>Output space &nbsp;<span class="sub">y = x<sub>1</sub>a<sub>1</sub> + x<sub>2</sub>a<sub>2</sub></span></h2>
+      <canvas id="cvOut" width="420" height="420"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// Math mirrored from the authoritative Python in ../python/linmaps.py
+// (apply, columns, rows, column_mixture, determinant, solve).
+(function () {
+  const $ = id => document.getElementById(id);
+  const VIEW = 5;            // both panels show [-VIEW, VIEW]^2
+  const EPS = 1e-6;
+
+  // model
+  let A = [2, 1, -1, 1];     // [a11, a12, a21, a22]
+  let x = [1, 2];
+  const apply = (M, v) => [M[0]*v[0] + M[1]*v[1], M[2]*v[0] + M[3]*v[1]];
+  const det = () => A[0]*A[3] - A[1]*A[2];
+  const norm2 = v => v[0]*v[0] + v[1]*v[1];
+  const dot2 = (u, v) => u[0]*v[0] + u[1]*v[1];
+  const clamp = v => Math.max(-VIEW+0.3, Math.min(VIEW-0.3, Math.round(v*20)/20));
+
+  // ---- a small canvas helper (DPR-aware, world<->screen) ----------------
+  function setup(id) {
+    const cv = $(id), ctx = cv.getContext("2d");
+    const api = { cv, ctx, W: 0, H: 0 };
+    api.resize = () => {
+      const cssW = cv.clientWidth || 420, dpr = window.devicePixelRatio || 1;
+      api.W = Math.round(cssW * dpr); api.H = api.W;
+      cv.width = api.W; cv.height = api.H; cv.style.height = cssW + "px";
+    };
+    api.S = (wx, wy) => { const s = api.W / (2*VIEW); return [api.W/2 + wx*s, api.H/2 - wy*s]; };
+    api.Sinv = (px, py) => { const s = api.W / (2*VIEW); return [(px - api.W/2)/s, (api.H/2 - py)/s]; };
+    return api;
+  }
+  const out = setup("cvOut"), inp = setup("cvIn");
+
+  function gridAxes(g) {
+    const dpr = window.devicePixelRatio || 1;
+    g.ctx.clearRect(0, 0, g.W, g.H);
+    g.ctx.strokeStyle = "#eef0f2"; g.ctx.lineWidth = 1*dpr;
+    for (let v = -VIEW+1; v <= VIEW-1; v++) {
+      if (v === 0) continue;
+      let p = g.S(v, -VIEW), q = g.S(v, VIEW);
+      g.ctx.beginPath(); g.ctx.moveTo(p[0], p[1]); g.ctx.lineTo(q[0], q[1]); g.ctx.stroke();
+      p = g.S(-VIEW, v); q = g.S(VIEW, v);
+      g.ctx.beginPath(); g.ctx.moveTo(p[0], p[1]); g.ctx.lineTo(q[0], q[1]); g.ctx.stroke();
+    }
+    g.ctx.strokeStyle = "#9aa3ad"; g.ctx.lineWidth = 1.1*dpr;
+    let p = g.S(-VIEW, 0), q = g.S(VIEW, 0);
+    g.ctx.beginPath(); g.ctx.moveTo(p[0], p[1]); g.ctx.lineTo(q[0], q[1]); g.ctx.stroke();
+    p = g.S(0, -VIEW); q = g.S(0, VIEW);
+    g.ctx.beginPath(); g.ctx.moveTo(p[0], p[1]); g.ctx.lineTo(q[0], q[1]); g.ctx.stroke();
+  }
+  function arrow(g, a, b, color, lw, dash) {
+    const dpr = window.devicePixelRatio || 1;
+    const A0 = g.S(a[0], a[1]), B0 = g.S(b[0], b[1]);
+    g.ctx.save();
+    g.ctx.strokeStyle = color; g.ctx.fillStyle = color; g.ctx.lineWidth = lw*dpr;
+    if (dash) g.ctx.setLineDash(dash.map(d => d*dpr));
+    g.ctx.beginPath(); g.ctx.moveTo(A0[0], A0[1]); g.ctx.lineTo(B0[0], B0[1]); g.ctx.stroke();
+    g.ctx.setLineDash([]);
+    const ang = Math.atan2(B0[1]-A0[1], B0[0]-A0[0]), len = Math.hypot(B0[0]-A0[0], B0[1]-A0[1]);
+    if (len > 6*dpr) {
+      const h = 11*dpr;
+      g.ctx.beginPath(); g.ctx.moveTo(B0[0], B0[1]);
+      g.ctx.lineTo(B0[0]-h*Math.cos(ang-0.4), B0[1]-h*Math.sin(ang-0.4));
+      g.ctx.lineTo(B0[0]-h*Math.cos(ang+0.4), B0[1]-h*Math.sin(ang+0.4));
+      g.ctx.closePath(); g.ctx.fill();
+    }
+    g.ctx.restore();
+  }
+  function dot(g, p, color, r) {
+    const dpr = window.devicePixelRatio || 1, s = g.S(p[0], p[1]);
+    g.ctx.fillStyle = color; g.ctx.beginPath(); g.ctx.arc(s[0], s[1], (r||5)*dpr, 0, 2*Math.PI); g.ctx.fill();
+  }
+  function label(g, p, text, color, off) {
+    const dpr = window.devicePixelRatio || 1, s = g.S(p[0], p[1]);
+    g.ctx.fillStyle = color; g.ctx.font = `${14*dpr}px Georgia, serif`;
+    g.ctx.fillText(text, s[0] + (off ? off[0] : 8)*dpr, s[1] + (off ? off[1] : -8)*dpr);
+  }
+  // line { v . p = c } drawn across the view, plus a short normal arrow
+  function lineGeometry(v, c) {
+    const nn = norm2(v);
+    if (nn < EPS) return;
+    const ln = Math.sqrt(nn);
+    const p0 = [c*v[0]/nn, c*v[1]/nn];        // foot of perpendicular from origin
+    const u = [v[0]/ln, v[1]/ln];              // unit normal, row direction
+    const d = [-u[1], u[0]];                   // unit direction along the line
+    return {p0, u, d, ln};
+  }
+  function strokeLine(g, geom, color, lw, dash, alpha) {
+    const dpr = window.devicePixelRatio || 1;
+    const T = 3*VIEW;
+    const a = [geom.p0[0]-T*geom.d[0], geom.p0[1]-T*geom.d[1]], b = [geom.p0[0]+T*geom.d[0], geom.p0[1]+T*geom.d[1]];
+    const A0 = g.S(a[0], a[1]), B0 = g.S(b[0], b[1]);
+    g.ctx.save();
+    g.ctx.globalAlpha = alpha == null ? 1 : alpha;
+    g.ctx.strokeStyle = color; g.ctx.lineWidth = lw*dpr;
+    if (dash) g.ctx.setLineDash(dash.map(d => d*dpr));
+    g.ctx.beginPath(); g.ctx.moveTo(A0[0], A0[1]); g.ctx.lineTo(B0[0], B0[1]); g.ctx.stroke();
+    g.ctx.restore();
+  }
+  function drawLevelSets(g, v, c, color) {
+    const geom = lineGeometry(v, c);
+    if (!geom) return;
+    const spacing = 1.0, count = Math.ceil((Math.SQRT2*VIEW + 1) / spacing);
+    for (let k = -count; k <= count; k++) {
+      if (k === 0) continue;
+      const shifted = lineGeometry(v, c + k*spacing*geom.ln);
+      if (shifted) strokeLine(g, shifted, color, 1.0, null, 0.18);
+    }
+  }
+  function drawLine(g, v, c, color) {
+    const geom = lineGeometry(v, c);
+    if (!geom) return;
+    strokeLine(g, geom, color, 2.2, null, 1);
+    // normal arrow at the foot (unit length), showing the row direction
+    arrow(g, geom.p0, [geom.p0[0]+geom.u[0], geom.p0[1]+geom.u[1]], color, 1.6, null);
+  }
+
+  // ---- output (columns) view --------------------------------------------
+  function drawOut() {
+    gridAxes(out);
+    const a1 = [A[0], A[2]], a2 = [A[1], A[3]];   // columns
+    const y = apply(A, x);
+    const t1 = [x[0]*a1[0], x[0]*a1[1]];          // x1 a1
+
+    if (Math.abs(det()) < 1e-4) {                 // singular: column space is a line
+      const v = (a1[0]*a1[0]+a1[1]*a1[1] > EPS) ? a1 : a2;
+      const n = Math.hypot(v[0], v[1]);
+      if (n > EPS) {
+        const u = [v[0]/n, v[1]/n];
+        arrow(out, [-VIEW*u[0], -VIEW*u[1]], [VIEW*u[0], VIEW*u[1]], "#d9b3b3", 1.4, [5,4]);
+      }
+    }
+    // columns
+    arrow(out, [0,0], a1, "#c0392b", 2.6);
+    arrow(out, [0,0], a2, "#2e8b57", 2.6);
+    label(out, a1, "a₁", "#c0392b");
+    label(out, a2, "a₂", "#2e8b57", [-6, -8]);
+    // mixture path: x1 a1, then + x2 a2  ->  y
+    arrow(out, [0,0], t1, "#e0a0a0", 1.8, [5,4]);
+    arrow(out, t1, y, "#a0c8b0", 1.8, [5,4]);
+    // y
+    arrow(out, [0,0], y, "#111", 2.4);
+    dot(out, y, "#111", 4);
+    label(out, y, "y", "#111", [9, -6]);
+  }
+
+  // ---- input (rows) view ------------------------------------------------
+  function drawIn() {
+    gridAxes(inp);
+    const r1 = [A[0], A[1]], r2 = [A[2], A[3]];   // rows
+    const y = apply(A, x);                         // so each line passes through x
+    drawLevelSets(inp, r1, y[0], "#1f5fa6");
+    drawLevelSets(inp, r2, y[1], "#6a3d9a");
+    drawLine(inp, r1, y[0], "#1f5fa6");
+    drawLine(inp, r2, y[1], "#6a3d9a");
+    dot(inp, x, "#111", 5.5);
+    label(inp, x, "x", "#111", [9, -6]);
+    label(inp, [0,0], "", "#111");
+  }
+
+  function readouts() {
+    const y = apply(A, x), d = det();
+    $("rx").textContent = `(${x[0].toFixed(2)}, ${x[1].toFixed(2)})`;
+    $("ry").textContent = `(${y[0].toFixed(2)}, ${y[1].toFixed(2)})`;
+    $("rdet").textContent = (d >= 0 ? "+" : "") + d.toFixed(2);
+    $("rhint").innerHTML = Math.abs(d) < 1e-4
+      ? "<b>A is singular.</b> Outputs fill only a line; dragging y snaps to that line, and x is one consistent solution."
+      : "A is invertible: every y comes from exactly one x (the lines meet at one point).";
+  }
+
+  function draw() { drawOut(); drawIn(); readouts(); }
+
+  // ---- matrix inputs -----------------------------------------------------
+  const cells = ["m00","m01","m10","m11"];
+  function syncCells() { cells.forEach((id,i) => $(id).value = A[i]); }
+  cells.forEach((id,i) => $(id).addEventListener("input", e => {
+    const v = parseFloat(e.target.value); if (isNaN(v)) return; A[i] = v; draw();
+  }));
+
+  // presets
+  const rot = d => { const t = d*Math.PI/180; return [Math.cos(t),-Math.sin(t),Math.sin(t),Math.cos(t)]; };
+  const PRE = [["Identity",[1,0,0,1]],["Rotate 30°",rot(30)],["Shear",[1,1,0,1]],
+               ["General",[2,1,-1,1]],["Singular",[1,2,2,4]]];
+  const pbox = $("presets");
+  PRE.forEach(([name,M]) => { const b=document.createElement("button"); b.textContent=name;
+    b.addEventListener("click",()=>{A=M.slice();syncCells();draw();}); pbox.appendChild(b); });
+
+  function projectOntoColumnSpace(yTarget) {
+    const a1 = [A[0], A[2]], a2 = [A[1], A[3]];
+    const base = norm2(a1) > EPS ? a1 : a2;
+    const nn = norm2(base);
+    if (nn < EPS) return [0, 0];
+    const alpha = dot2(yTarget, base) / nn;
+    return [alpha*base[0], alpha*base[1]];
+  }
+  function solveForX(yTarget) {
+    const d = det();
+    if (Math.abs(d) >= 1e-4) {
+      return [(A[3]*yTarget[0] - A[1]*yTarget[1]) / d,
+              (-A[2]*yTarget[0] + A[0]*yTarget[1]) / d];
+    }
+    const yProj = projectOntoColumnSpace(yTarget);
+    const r1 = [A[0], A[1]], r2 = [A[2], A[3]];
+    const row = norm2(r1) > EPS ? r1 : r2;
+    const rowIndex = norm2(r1) > EPS ? 0 : 1;
+    const rr = norm2(row);
+    if (rr < EPS) return x.slice();
+    const c = yProj[rowIndex];
+    const delta = (c - dot2(row, x)) / rr;
+    return [x[0] + delta*row[0], x[1] + delta*row[1]];
+  }
+
+  // drag x on the input canvas, or drag y on the output canvas
+  let draggingInput = false, draggingOutput = false;
+  function toWorld(g, ev) {
+    const r = g.cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    return g.Sinv((ev.clientX-r.left)*dpr, (ev.clientY-r.top)*dpr);
+  }
+  function setFromInput(ev) {
+    const w = toWorld(inp, ev);
+    x = [clamp(w[0]), clamp(w[1])];
+    draw();
+  }
+  function setFromOutput(ev) {
+    const w = toWorld(out, ev);
+    x = solveForX([clamp(w[0]), clamp(w[1])]);
+    draw();
+  }
+  inp.cv.addEventListener("pointerdown", ev => { draggingInput = true; inp.cv.setPointerCapture(ev.pointerId); setFromInput(ev); });
+  inp.cv.addEventListener("pointermove", ev => { if (draggingInput) setFromInput(ev); });
+  inp.cv.addEventListener("pointerup", () => { draggingInput = false; });
+  inp.cv.addEventListener("pointercancel", () => { draggingInput = false; });
+  out.cv.addEventListener("pointerdown", ev => { draggingOutput = true; out.cv.setPointerCapture(ev.pointerId); setFromOutput(ev); });
+  out.cv.addEventListener("pointermove", ev => { if (draggingOutput) setFromOutput(ev); });
+  out.cv.addEventListener("pointerup", () => { draggingOutput = false; });
+  out.cv.addEventListener("pointercancel", () => { draggingOutput = false; });
+
+  function resizeAll(){ out.resize(); inp.resize(); draw(); }
+  window.addEventListener("resize", resizeAll);
+  syncCells(); resizeAll();
+})();
+</script>
+</body>
+</html>

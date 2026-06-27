@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linearization: Tangent Line &amp; Plane &mdash; EE263</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjs@12/lib/browser/math.js"></script>
+<style>
+  :root { --blue:#1f5fa6; --red:#c0392b; --ink:#222; --muted:#666; --line:#e3e3e3; --bg:#fafafa; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         color:var(--ink); background:var(--bg); line-height:1.5; }
+  header.page { padding:22px 24px 14px; border-bottom:1px solid var(--line); background:#fff; }
+  header.page .crumb { font-size:.9rem; color:var(--muted); }
+  header.page .crumb a { color:var(--blue); text-decoration:none; }
+  header.page .crumb a:hover { text-decoration:underline; }
+  header.page h1 { margin:6px 0 2px; font-size:1.5rem; }
+  header.page p { margin:0; color:var(--muted); max-width:74ch; }
+
+  .wrap { display:flex; gap:26px; align-items:flex-start; padding:22px 24px 40px; flex-wrap:wrap; }
+  .panel { flex:0 0 320px; max-width:100%; }
+  .stage { flex:1 1 460px; min-width:320px; }
+  #plot { width:100%; height:520px; background:#fff; border:1px solid var(--line); border-radius:4px; }
+
+  .seg { display:flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:16px; }
+  .seg button { flex:1; font:inherit; padding:8px 0; border:0; background:#fff; cursor:pointer; color:var(--ink); }
+  .seg button.active { background:var(--blue); color:#fff; }
+
+  h3 { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:18px 0 8px; }
+  .ctrl { margin-bottom:14px; }
+  .ctrl label { display:flex; justify-content:space-between; font-size:.92rem; margin-bottom:2px; }
+  .ctrl label .val { font-variant-numeric:tabular-nums; color:var(--muted); }
+  .ctrl input[type=range] { width:100%; }
+  .ctrl input[type=text] { font:inherit; width:100%; padding:7px 9px; border:1px solid var(--line);
+                           border-radius:4px; background:#fff; }
+  .ctrl input[type=text]:focus { outline:2px solid var(--blue); border-color:var(--blue); }
+
+  .err { color:var(--red); font-size:.82rem; min-height:1.1em; margin-top:5px; }
+  .examples { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .examples button { font:inherit; font-size:.8rem; padding:3px 9px; border:1px solid var(--line);
+                     background:#fff; border-radius:999px; cursor:pointer; color:var(--muted); }
+  .examples button:hover { border-color:var(--blue); color:var(--blue); }
+  .tip { font-size:.8rem; color:var(--muted); margin:6px 0 0; }
+  .xypad { display:block; margin:4px 0 2px; border:1px solid var(--line); border-radius:6px;
+           background:#fff; cursor:crosshair; touch-action:none; }
+  .padcap { font-size:.78rem; color:var(--muted); margin:0 0 6px; }
+
+  .eqn { background:#fff; border:1px solid var(--line); border-radius:4px; padding:10px 12px; font-size:.9rem; margin-top:6px; }
+  .eqn code { font-size:.92rem; color:var(--ink); }
+  .eqn .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<header class="page">
+  <div class="crumb"><a href="../">&larr; Math simulations</a> &nbsp;&middot;&nbsp; EE263, Stanford</div>
+  <h1>Linearization: the tangent line and tangent plane</h1>
+  <p>A smooth function looks linear up close. Type any function, then move the base point:
+     <b>drag on the plot</b> in 1D, or use the <b>pad and sliders</b> in 2D. The best
+     linear approximation is
+     <i>f</i>(x) &asymp; <i>f</i>(x<sub>0</sub>) + <i>Df</i>(x<sub>0</sub>)(x &minus; x<sub>0</sub>);
+     watch where it is good and where it breaks down.</p>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <div class="seg">
+      <button id="m2" class="active">1D &mdash; tangent line</button>
+      <button id="m3">2D &mdash; tangent plane</button>
+    </div>
+
+    <h3>Function</h3>
+    <div class="ctrl">
+      <input type="text" id="expr" autocomplete="off" spellcheck="false" autocapitalize="off">
+      <div class="err" id="exprErr"></div>
+      <div class="examples" id="examples"></div>
+    </div>
+
+    <div id="ctrl2d">
+      <h3>Base point</h3>
+      <div class="ctrl">
+        <label><span>x<sub>0</sub></span><span class="val" id="vx0">1.00</span></label>
+        <input type="range" id="x0" min="-3" max="3" step="0.02" value="1">
+      </div>
+      <p class="tip">Tip: drag anywhere on the plot to move x₀.</p>
+    </div>
+
+    <div id="ctrl3d" style="display:none">
+      <h3>Base point (x₀, y₀)</h3>
+      <canvas id="xypad" class="xypad" width="170" height="170"></canvas>
+      <p class="padcap">Drag the pad to move x₀ and y₀ together.</p>
+      <div class="ctrl">
+        <label><span>x<sub>0</sub></span><span class="val" id="vx03">0.60</span></label>
+        <input type="range" id="x03" min="-2.5" max="2.5" step="0.02" value="0.6">
+      </div>
+      <div class="ctrl">
+        <label><span>y<sub>0</sub></span><span class="val" id="vy03">-0.40</span></label>
+        <input type="range" id="y03" min="-2.5" max="2.5" step="0.02" value="-0.4">
+      </div>
+      <p class="tip">Drag the 3D plot to rotate. Move the base point with the pad or the sliders.</p>
+    </div>
+
+    <div class="eqn" id="eqn"></div>
+  </div>
+
+  <div class="stage"><div id="plot"></div></div>
+</div>
+
+<script>
+"use strict";
+// Math mirrored from the authoritative Python in ../python/linearization.py
+// (derivative, tangent_line, gradient, tangent_plane). Here the user types the
+// function and it is parsed with math.js; the Python takes any callable.
+(function () {
+  const h = 1e-4;
+  const $ = id => document.getElementById(id);
+  const lin = (a, b, n) => Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));
+
+  // mode "2d": one variable f(x), tangent line.  mode "3d": f(x,y), tangent plane.
+  let mode = "2d";
+  let dragging2d = false;
+
+  const EX1 = ["sin(x)", "x^3/3 - x", "exp(0.7*x)", "exp(-x^2)"];
+  const EX2 = ["sin(x)*cos(y)", "(x^2 - y^2)/2", "exp(-(x^2+y^2)/2)", "x*y"];
+
+  let expr1 = EX1[0], expr2 = EX2[0];
+  let f1 = makeF(expr1, 1);
+  let f2 = makeF(expr2, 2);
+
+  // Compile a user expression into a numeric function. Throws on a bad
+  // expression or an undefined symbol; returns NaN for non-real / infinite
+  // results so the plot just shows a gap there.
+  function makeF(expr, nvars) {
+    const node = math.compile(expr);
+    node.evaluate(nvars === 1 ? { x: 1 } : { x: 1, y: 1 });   // surface errors now
+    if (nvars === 1) {
+      return x => { const v = node.evaluate({ x }); return (typeof v === "number" && isFinite(v)) ? v : NaN; };
+    }
+    return (x, y) => { const v = node.evaluate({ x, y }); return (typeof v === "number" && isFinite(v)) ? v : NaN; };
+  }
+
+  function applyExpr() {
+    const s = $("expr").value.trim();
+    if (!s) return;
+    try {
+      if (mode === "2d") { f1 = makeF(s, 1); expr1 = s; }
+      else { f2 = makeF(s, 2); expr2 = s; }
+      $("exprErr").textContent = "";
+      draw();
+    } catch (e) {
+      $("exprErr").textContent =
+        "Couldn't read that. Use " + (mode === "2d" ? "x (e.g. sin(x), x^2, exp(-x^2))"
+                                                     : "x and y (e.g. sin(x)*cos(y), x^2 - y^2)") + ".";
+    }
+  }
+
+  function fillExamples() {
+    const ex = mode === "2d" ? EX1 : EX2;
+    const box = $("examples"); box.innerHTML = "";
+    ex.forEach(s => {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = s;
+      b.addEventListener("click", () => { $("expr").value = s; applyExpr(); });
+      box.appendChild(b);
+    });
+  }
+
+  const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(3) : "—";
+
+  // ---- 2D: tangent line --------------------------------------------------
+  function draw2d() {
+    const F = f1;
+    const x0 = parseFloat($("x0").value);
+    const xs = lin(-3.2, 3.2, 240);
+    const ys = xs.map(F);
+    const f0 = F(x0), df = (F(x0 + h) - F(x0 - h)) / (2 * h);
+    const tan = xs.map(x => f0 + df * (x - x0));
+
+    const curve = { x: xs, y: ys, mode: "lines", name: "f(x)", line: { color: "#1f5fa6", width: 3 } };
+    const tangent = { x: xs, y: tan, mode: "lines", name: "linear approx.", line: { color: "#c0392b", width: 2.5, dash: "dash" } };
+    const errBand = { x: xs.concat(xs.slice().reverse()), y: ys.concat(tan.slice().reverse()),
+                      fill: "toself", fillcolor: "rgba(192,57,43,0.10)", line: { width: 0 },
+                      hoverinfo: "skip", showlegend: false };
+    const pt = { x: [x0], y: [f0], mode: "markers+text", text: ["x₀"], textposition: "top center",
+                 marker: { color: "#111", size: 9 }, showlegend: false };
+
+    const layout = {
+      margin: { l: 45, r: 15, t: 10, b: 40 }, paper_bgcolor: "#fff", plot_bgcolor: "#fff",
+      xaxis: { title: "x", range: [-3.2, 3.2], zeroline: true, zerolinecolor: "#bbb" },
+      yaxis: { title: "f", range: yRange(ys), zeroline: true, zerolinecolor: "#bbb" },
+      legend: { x: 0.02, y: 0.98, bgcolor: "rgba(255,255,255,0.6)" },
+      font: { family: "Georgia, serif" },
+      dragmode: false,   // disable box-zoom so dragging moves the base point
+    };
+    Plotly.react("plot", [errBand, curve, tangent, pt], layout, { displayModeBar: false, responsive: true });
+    ensureDrag2d();
+    $("vx0").textContent = x0.toFixed(2);
+    $("eqn").innerHTML = `<code>f(x) &asymp; f(x₀) + f&prime;(x₀)(x &minus; x₀)</code><br>
+      <span class="muted">f(x₀) = ${fmt(f0)}, &nbsp; f&prime;(x₀) = ${fmt(df)}.
+      Shaded area is the approximation error; it grows as you move away from x₀.</span>`;
+  }
+  function yRange(ys) {
+    const f = ys.filter(Number.isFinite);
+    if (!f.length) return [-1, 1];
+    const lo = Math.min(...f), hi = Math.max(...f), pad = 0.2 * (hi - lo + 1e-6);
+    return [lo - pad, hi + pad];
+  }
+
+  // ---- 3D: tangent plane -------------------------------------------------
+  // The surface is expensive to build (40x40 WebGL mesh) and never changes when
+  // only x0/y0 move, so we rebuild it (render3dFull) ONLY when the function or
+  // mode changes, and use a light Plotly.restyle (update3dPoint) for x0/y0. The
+  // restyle touches only the small plane + point traces, so it is fast and it
+  // leaves the camera untouched (fixing both the freeze and the angle reset).
+  const N3 = 40, LO3 = -2.6, HI3 = 2.6;
+
+  function planeAndPoint(x0, y0) {
+    const F = f2;
+    const f0 = F(x0, y0);
+    const fx = (F(x0 + h, y0) - F(x0 - h, y0)) / (2 * h);
+    const fy = (F(x0, y0 + h) - F(x0, y0 - h)) / (2 * h);
+    const span = 1.3, m = 12;
+    const px = lin(x0 - span, x0 + span, m), py = lin(y0 - span, y0 + span, m);
+    const P = py.map(y => px.map(x => f0 + fx * (x - x0) + fy * (y - y0)));
+    return { f0, fx, fy, px, py, P };
+  }
+
+  function eqn3d(f0, fx, fy) {
+    $("vx03").textContent = parseFloat($("x03").value).toFixed(2);
+    $("vy03").textContent = parseFloat($("y03").value).toFixed(2);
+    $("eqn").innerHTML = `<code>f(x,y) &asymp; f₀ + f<sub>x</sub>(x&minus;x₀) + f<sub>y</sub>(y&minus;y₀)</code><br>
+      <span class="muted">f₀ = ${fmt(f0)}, &nbsp; f<sub>x</sub> = ${fmt(fx)}, &nbsp; f<sub>y</sub> = ${fmt(fy)}.
+      The red plane is the gradient&rsquo;s best flat fit at (x₀,y₀); drag to rotate.</span>`;
+  }
+
+  function render3dFull() {
+    const F = f2;
+    const gx = lin(LO3, HI3, N3), gy = lin(LO3, HI3, N3);
+    const Z = gy.map(y => gx.map(x => F(x, y)));
+    const x0 = parseFloat($("x03").value), y0 = parseFloat($("y03").value);
+    const { f0, fx, fy, px, py, P } = planeAndPoint(x0, y0);
+
+    // hoverinfo "skip": no hover/click hit-testing on the 3D meshes. This avoids
+    // the WebGL pixel-readback that froze the page on surface clicks; the base
+    // point is moved only via the pad and sliders.
+    const surf = { type: "surface", x: gx, y: gy, z: Z, showscale: false, colorscale: "Blues", opacity: 0.95, hoverinfo: "skip" };
+    const plane = { type: "surface", x: px, y: py, z: P, showscale: false,
+                    colorscale: [[0, "#c0392b"], [1, "#c0392b"]], opacity: 0.55, hoverinfo: "skip" };
+    const pt = { type: "scatter3d", x: [x0], y: [y0], z: [isFinite(f0) ? f0 : 0], mode: "markers",
+                 marker: { color: "#111", size: 4 }, hoverinfo: "skip" };
+
+    const flat = Z.flat().filter(Number.isFinite);
+    const zlo = flat.length ? Math.min(...flat) : -1, zhi = flat.length ? Math.max(...flat) : 1;
+    const zp = 0.2 * (zhi - zlo + 1e-6);
+
+    // keep the current viewing angle on a full rebuild (e.g. function change):
+    // read it from _fullLayout, which reflects live rotation
+    const gd = $("plot");
+    const fl = gd._fullLayout;
+    const cur = (fl && fl.scene && fl.scene.camera) || (gd.layout && gd.layout.scene && gd.layout.scene.camera);
+
+    const layout = {
+      margin: { l: 0, r: 0, t: 0, b: 0 }, paper_bgcolor: "#fff",
+      scene: {
+        xaxis: { title: "x", range: [LO3, HI3] }, yaxis: { title: "y", range: [LO3, HI3] },
+        zaxis: { title: "f", range: [zlo - zp, zhi + zp] },
+        camera: cur || { eye: { x: 1.5, y: 1.5, z: 1.0 } }, aspectmode: "cube",
+      },
+      showlegend: false, font: { family: "Georgia, serif" },
+    };
+    Plotly.react("plot", [surf, plane, pt], layout, { displayModeBar: false, responsive: true });
+    eqn3d(f0, fx, fy);
+    drawPad();
+  }
+
+  // Move only the base point: update the tangent plane (trace 1) and the marker
+  // (trace 2) via restyle. The surface (trace 0) and camera are left alone.
+  function update3dPoint() {
+    const gd = $("plot");
+    if (mode !== "3d" || !gd.data || gd.data.length < 3) { render3dFull(); return; }
+    const x0 = parseFloat($("x03").value), y0 = parseFloat($("y03").value);
+    const { f0, fx, fy, px, py, P } = planeAndPoint(x0, y0);
+    Plotly.restyle(gd, { x: [px], y: [py], z: [P] }, [1]);
+    Plotly.restyle(gd, { x: [[x0]], y: [[y0]], z: [[isFinite(f0) ? f0 : 0]] }, [2]);
+    eqn3d(f0, fx, fy);
+  }
+
+  // ---- 2D control pad: drag to set (x0, y0) jointly ----------------------
+  const PAD = 170, PADR = 2.5;  // pad is PAD px, mapping to [-PADR, PADR]^2
+  const w2p = (wx, wy) => [(wx + PADR) / (2 * PADR) * PAD, (PADR - wy) / (2 * PADR) * PAD];
+  function drawPad() {
+    const c = $("xypad");
+    if (!c) return;
+    const dpr = window.devicePixelRatio || 1, want = Math.round(PAD * dpr);
+    if (c.width !== want) { c.width = want; c.height = want; c.style.width = PAD + "px"; c.style.height = PAD + "px"; }
+    const g = c.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, PAD, PAD);
+    g.strokeStyle = "#ededed"; g.lineWidth = 1;
+    for (let v = -2; v <= 2; v++) {
+      const gx = w2p(v, 0)[0], gy = w2p(0, v)[1];
+      g.beginPath(); g.moveTo(gx, 0); g.lineTo(gx, PAD); g.stroke();
+      g.beginPath(); g.moveTo(0, gy); g.lineTo(PAD, gy); g.stroke();
+    }
+    g.strokeStyle = "#c2c8ce";
+    const o = w2p(0, 0);
+    g.beginPath(); g.moveTo(o[0], 0); g.lineTo(o[0], PAD); g.stroke();
+    g.beginPath(); g.moveTo(0, o[1]); g.lineTo(PAD, o[1]); g.stroke();
+    const d = w2p(parseFloat($("x03").value), parseFloat($("y03").value));
+    g.fillStyle = "#1f5fa6"; g.beginPath(); g.arc(d[0], d[1], 6, 0, 2 * Math.PI); g.fill();
+    g.lineWidth = 2; g.strokeStyle = "#fff"; g.stroke();
+  }
+  function update3dView() { update3dPoint(); drawPad(); }
+  function padSet(ev) {
+    const r = $("xypad").getBoundingClientRect();
+    const clamp = v => Math.max(-PADR, Math.min(PADR, v));
+    $("x03").value = clamp((ev.clientX - r.left) / PAD * (2 * PADR) - PADR);
+    $("y03").value = clamp(PADR - (ev.clientY - r.top) / PAD * (2 * PADR));
+    update3dView();
+  }
+
+  // Drag along the 1D plot to move x0 (in addition to the slider). Attaches
+  // once and survives Plotly.react. (3D uses the pad/sliders, not the graph.)
+  function ensureDrag2d() {
+    const gd = $("plot");
+    if (gd._dragHook2d) return;
+    gd._dragHook2d = true;
+    const setFromX = clientX => {
+      const ax = gd._fullLayout && gd._fullLayout.xaxis;
+      if (!ax || !ax._length) return;
+      const rel = clientX - gd.getBoundingClientRect().left - ax._offset;
+      let xd = ax.range[0] + (rel / ax._length) * (ax.range[1] - ax.range[0]);
+      xd = Math.max(-3, Math.min(3, xd));
+      $("x0").value = xd;
+      draw2d();
+    };
+    gd.addEventListener("pointerdown", e => {
+      if (mode !== "2d") return;
+      dragging2d = true;
+      setFromX(e.clientX);
+    }, true);
+    window.addEventListener("pointermove", e => { if (dragging2d && mode === "2d") setFromX(e.clientX); });
+    window.addEventListener("pointerup", () => { dragging2d = false; });
+  }
+  function draw() { mode === "2d" ? draw2d() : render3dFull(); }
+
+  // ---- mode + input wiring ----------------------------------------------
+  function setMode(m) {
+    mode = m;
+    $("m2").classList.toggle("active", m === "2d");
+    $("m3").classList.toggle("active", m === "3d");
+    $("ctrl2d").style.display = m === "2d" ? "" : "none";
+    $("ctrl3d").style.display = m === "3d" ? "" : "none";
+    $("expr").value = m === "2d" ? expr1 : expr2;
+    $("expr").placeholder = m === "2d" ? "f(x), e.g. sin(x)" : "f(x,y), e.g. sin(x)*cos(y)";
+    $("exprErr").textContent = "";
+    fillExamples();
+    draw();
+  }
+  $("m2").addEventListener("click", () => setMode("2d"));
+  $("m3").addEventListener("click", () => setMode("3d"));
+  $("expr").addEventListener("input", applyExpr);
+  $("x0").addEventListener("input", draw2d);
+  $("x03").addEventListener("input", update3dView);
+  $("y03").addEventListener("input", update3dView);
+  (function () {
+    let padDrag = false;
+    const pad = $("xypad");
+    pad.addEventListener("pointerdown", e => { padDrag = true; pad.setPointerCapture(e.pointerId); padSet(e); });
+    pad.addEventListener("pointermove", e => { if (padDrag) padSet(e); });
+    pad.addEventListener("pointerup", () => { padDrag = false; });
+    pad.addEventListener("pointercancel", () => { padDrag = false; });
+  })();
+
+  $("expr").value = expr1;
+  $("expr").placeholder = "f(x), e.g. sin(x)";
+  fillExamples();
+  draw();
+})();
+</script>
+</body>
+</html>
